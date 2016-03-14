@@ -1,0 +1,74 @@
+<html>
+  <head>
+  
+	<style>
+	
+		li.flashMSG {
+			display: block;
+			text-align: center;
+			padding: 14px 16px;
+			text-decoration: none;
+			background-color: #FFF;
+		}
+		
+		ul {
+			list-style-type: none;
+			margin: 0;
+			padding: 0;
+			overflow: hidden;
+			background-color: #333;
+		}
+
+		li {
+			float: left;
+		}
+
+		li a {
+			display: block;
+			color: white;
+			text-align: center;
+			padding: 14px 16px;
+			text-decoration: none;
+		}
+
+		li a:hover:not(.active) {
+			background-color: #111;
+		}
+
+		.active {
+			background-color: #4CAF50;
+		}
+	</style>
+	
+    {% if title %}
+    <title>{{title}} - microblog</title>
+    {% else %}
+    <title>microblog</title>
+    {% endif %}
+  </head>
+
+  <body>
+		<div>
+		  <ul>
+			<li class="active"><a href="{{ url_for('index') }}">Home</a></li>
+			<li><a href="/login">Login</a></li>
+			{% if g.user.is_authenticated %}
+			<li><a href="{{ url_for('user', nickname=g.user.nickname) }}">
+			  Your Profile</a></li>
+			<li><a href="{{ url_for('logout') }}">Logout</a></li>
+			{% endif %}
+		  </ul>
+		</div>
+		<hr>
+		{% with messages = get_flashed_messages() %}
+		{% if messages %}
+		<ul style="background-color:white;">
+			{% for message in messages %}
+			<li class="flashMSG">{{ message }}</li>
+			{% endfor %}
+		</ul>
+		{% endif %}
+		{% endwith %}
+		{% block content %}{% endblock %}
+  </body>
+</html>
