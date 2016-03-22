@@ -2,7 +2,7 @@ from flask import render_template, flash, redirect, session
 from flask import url_for, request, g
 from flask.ext.login import login_user, logout_user
 from flask.ext.login import current_user, login_required
-from app import app, db, lm, oid
+from app import app, db, lm
 from .forms import LoginForm
 from .models import User
 
@@ -10,6 +10,7 @@ from .models import User
 @app.route('/index')
 @login_required
 def index():
+    print ">>> index"
     user = g.user
     posts = [
         {
@@ -28,8 +29,9 @@ def index():
                            posts = posts)
 
 @app.route('/login', methods = ['GET', 'POST'])
-@oid.loginhandler
+#@oid.loginhandler
 def login():
+    print ">>> login"
     if g.user is not None and g.user.is_authenticated:
         return redirect(url_for('index'))
 
@@ -37,9 +39,26 @@ def login():
     
     if l_form.validate_on_submit():
         session['remember_me'] = l_form.remember_me.data
-        print l_form.openid.data
-        return oid.try_login(l_form.openid.data, ask_for=['nickname', 'email'])
+        nickname = l_form.username.data
+        email = l_form.email.data
 
+        user = User.query.filter_by(email=email).first()
+
+        if user is None:
+
+            if nickname is None or nickname == "":
+                nickname = email.splint('@')[0]
+
+            new_user = User(nickname=nickname, email=email)
+            print "***Database operation: adding user..."
+            db.session.add(new_user)
+            db.session.commit()
+            user = new_user
+
+        login_user(user)
+
+        return redirect(request.args.get('next') or url_for('index'))
+        #return oid.try_login(l_form.openid.data, ask_for=['nickname', 'email'])
 
     return render_template("login.html",
                            title = "Sign In",
@@ -51,7 +70,7 @@ def before_request():
     g.user = current_user
     print g.user
 
-@oid.after_login
+#@oid.after_login
 def after_login(resp):
     if resp.email is None or resp.email == "":
         print "***after_login: no email"
