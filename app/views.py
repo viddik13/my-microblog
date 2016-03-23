@@ -5,12 +5,12 @@ from flask.ext.login import current_user, login_required
 from app import app, db, lm
 from .forms import LoginForm
 from .models import User
+from datetime import datetime
 
 @app.route('/')
 @app.route('/index')
 @login_required
 def index():
-    print ">>> index"
     user = g.user
     posts = [
         {
@@ -31,7 +31,6 @@ def index():
 @app.route('/login', methods = ['GET', 'POST'])
 #@oid.loginhandler
 def login():
-    print ">>> login"
     if g.user is not None and g.user.is_authenticated:
         return redirect(url_for('index'))
 
@@ -55,6 +54,11 @@ def login():
             db.session.commit()
             user = new_user
 
+        remember_me = False
+        if 'remember_me' in session:
+            remember_me = session['remember_me']
+            session.pop('remember_me', None)
+
         login_user(user)
 
         return redirect(request.args.get('next') or url_for('index'))
@@ -68,32 +72,35 @@ def login():
 @app.before_request
 def before_request():
     g.user = current_user
-    print g.user
+    if g.user.is_authenticated:
+        g.user.last_seen = datetime.utcnow()
+        db.session.add(g.user)
+        db.session.commit()
 
 #@oid.after_login
-def after_login(resp):
-    if resp.email is None or resp.email == "":
-        print "***after_login: no email"
-        flash('Invalid login. Please try again.')
-        return redirect(url_for('login'))
-
-    user = User.query.filter_by(email=resp.email).first()
-    if user is None:
-        nickname = resp.nickname
-        if nickname is None or nickname == "":
-            nickname = resp.email.splint('@')[0]
-        user = User(nickname=nickname, email=resp.email)
-        print "***Database operation: adding user..."
-        db.session.add(user)
-        db.session.commit()
-    
-    remember_me = False
-    if 'remember_me' in session:
-        remember_me = session['remember_me']
-        session.pop('remember_me', None)
-        
-    login_user(user, remember = remember_me)
-    return redirect(request.args.get('next') or url_for('index'))
+# def after_login(resp):
+#     if resp.email is None or resp.email == "":
+#         print "***after_login: no email"
+#         flash('Invalid login. Please try again.')
+#         return redirect(url_for('login'))
+#
+#     user = User.query.filter_by(email=resp.email).first()
+#     if user is None:
+#         nickname = resp.nickname
+#         if nickname is None or nickname == "":
+#             nickname = resp.email.splint('@')[0]
+#         user = User(nickname=nickname, email=resp.email)
+#         print "***Database operation: adding user..."
+#         db.session.add(user)
+#         db.session.commit()
+#
+#     remember_me = False
+#     if 'remember_me' in session:
+#         remember_me = session['remember_me']
+#         session.pop('remember_me', None)
+#
+#     login_user(user, remember = remember_me)
+#     return redirect(request.args.get('next') or url_for('index'))
     
 @lm.user_loader
 def load_user(id):
