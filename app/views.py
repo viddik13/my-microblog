@@ -23,7 +23,6 @@ def index():
             'body': "Better dance some D'n'B!!"
         }
     ]
-
     return render_template("index.html", title='Home', user=user, posts=posts)
 
 
@@ -50,19 +49,24 @@ def login():
             db.session.add(user)
             db.session.commit()
 
+        elif user.nickname is not nickname:
+            flash("User with this email already exists.")
+            g.user.email = email
+            return redirect(url_for('login'))
+
         remember_me = False
         if 'remember_me' in session:
             remember_me = session['remember_me']
             session.pop('remember_me', None)
 
+        print "Logging user..."
         login_user(user, remember_me)
 
         return redirect(request.args.get('next') or url_for('index'))
 
     return render_template("login.html",
                            title="Sign In",
-                           form=l_form,
-                           providers=app.config['OPENID_PROVIDERS'])
+                           form=l_form)
 
 
 @app.before_request
@@ -81,8 +85,8 @@ def load_user(user_id):
 
 @app.route('/logout')
 def logout():
-        logout_user()
-        return redirect(url_for('index'))
+    logout_user()
+    return redirect(url_for('index'))
 
 
 @app.route('/user/<nickname>')
@@ -106,7 +110,26 @@ def user(nickname):
 @app.route('/edit_profile', methods=['GET', 'POST'])
 @login_required
 def edit_profile():
-    edit_form = ProfileEditForm()
+    edit_form = ProfileEditForm(g.user.nickname)
     if edit_form.validate_on_submit():
         g.user.nickname = edit_form.nickname.data
         g.user.about_me = edit_form.about_me.data
+        db.session.add(g.user)
+        db.session.commit()
+        flash('Your changes have been saved.')
+        return redirect(url_for('edit_profile'))
+    else:
+        edit_form.nickname.data = g.user.nickname
+        edit_form.about_me.data = g.user.about_me
+        return render_template('edit_profile.html', form=edit_form)
+
+
+@app.errorhandler(404)
+def not_found_error(error):
+    return render_template('404.html'), 404
+
+
+@app.errorhandler(500)
+def internal_error(error):
+    db.session.rollback()
+    return render_template('500.html'), 500
